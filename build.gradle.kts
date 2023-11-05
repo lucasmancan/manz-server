@@ -1,12 +1,15 @@
 plugins {
     id("java")
+    id("java-library")
     id("com.github.johnrengelman.shadow") version "7.1.2"
+    id("maven-publish")
 }
 
 group = "org.manz"
 version = "0.1-SNAPSHOT"
 
 repositories {
+    mavenLocal()
     mavenCentral()
 }
 
@@ -30,8 +33,19 @@ tasks.test {
 
 tasks.build {
     dependsOn(tasks.getByName("shadowJar"))
+   dependsOn(tasks.getByName("publishToMavenLocal"))
+
 }
 
 tasks.jar {
     manifest.attributes["Main-Class"] = "org.manz.Main"
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            groupId = "org.manz"
+            from(components["java"])
+        }
+    }
 }
