@@ -1,9 +1,10 @@
 plugins {
     id("java")
+    id("com.github.johnrengelman.shadow") version "7.1.2"
 }
 
-group = "org.example"
-version = "1.0-SNAPSHOT"
+group = "org.manz"
+version = "0.1-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -25,4 +26,12 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+tasks.build {
+    dependsOn(tasks.getByName("shadowJar"))
+}
+
+tasks.jar {
+    manifest.attributes["Main-Class"] = "org.manz.Main"
 }
