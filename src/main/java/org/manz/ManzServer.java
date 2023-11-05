@@ -30,7 +30,7 @@ public class ManzServer {
     }
 
     public void registerRoute(HttpMethod method, String path, Function<Request, Response> handler) {
-
+        // TODO implement route registration
     }
 
     public void start() {
