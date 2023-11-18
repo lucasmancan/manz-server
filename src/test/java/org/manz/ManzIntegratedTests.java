@@ -3,6 +3,7 @@ package org.manz;
 import com.squareup.okhttp.MediaType;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.RequestBody;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.manz.model.*;
@@ -21,26 +22,35 @@ public class ManzIntegratedTests {
         }, new Payload("Hello World", "text/plain"));
     }
 
-    @BeforeAll
-    public static void startLocalServer() throws InterruptedException {
-        new Thread(() -> {
+    private static Thread serverThread;
+
+    public static void startLocalServer() {
+
+        serverThread = new Thread(() -> {
             var server = new ManzServer();
 
             server.setServerMaxThreads(200);
             server.setServerPort(3000);
 
-            var helloRoute = new Route(HttpMethod.GET, "/pessoas", Collections.emptyList(), Collections.emptyList());
+            var helloRoute = new Route(HttpMethod.GET, "/pessoas",
+                    Collections.emptyList(), Collections.emptyList());
 
             server.registerRoute(helloRoute, helloWorldHandler());
 
             server.start();
-        }).start();
+        });
 
-        Thread.sleep(1000);
+        serverThread.start();
+    }
+
+    public static void stopLocalServer() throws InterruptedException {
+        serverThread.stop();
     }
 
     @Test
-    public void shouldHandleRequestAnd() throws IOException {
+    public void shouldHandleRequestAnd() throws IOException, InterruptedException {
+        startLocalServer();
+
         OkHttpClient client = new OkHttpClient();
 
         MediaType mediaType = MediaType.parse("application/json");
@@ -60,6 +70,7 @@ public class ManzIntegratedTests {
         assertEquals("Hello World", body);
         assertEquals(200, response.code());
 
+        stopLocalServer();
 
     }
 //    public static void main(String[] args) throws Exception {

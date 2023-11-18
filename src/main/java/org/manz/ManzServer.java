@@ -1,6 +1,8 @@
 package org.manz;
 
-import org.manz.model.HttpMethod;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.manz.model.Request;
 import org.manz.model.Response;
 import org.manz.model.Route;
@@ -13,15 +15,17 @@ import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
-import java.math.*;
+
 public class ManzServer {
     private int port = 3000;
     private int maxThreads = 200;
+    private ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .registerModule(new Jdk8Module());
     private final Logger logger = LoggerFactory.getLogger(ManzServer.class);
     private final Executor manzWorkersPoll = Executors.newFixedThreadPool(maxThreads);
 
@@ -35,6 +39,9 @@ public class ManzServer {
         this.maxThreads = maxThreads;
     }
 
+    public void setObjectMapperImpl(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     public void registerRoute(Route route, Function<Request, Response> handler) {
         this.registeredRoutes.put(route, handler);
@@ -45,7 +52,10 @@ public class ManzServer {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             while (true) {
                 Socket client = serverSocket.accept();
-                manzWorkersPoll.execute(new ManzWorker(client, registeredRoutes));
+
+                var worker = new ManzWorker(client, objectMapper, registeredRoutes);
+
+                manzWorkersPoll.execute(worker);
             }
         } catch (IOException exception) {
             logger.error("Internal error running Manz server", exception);

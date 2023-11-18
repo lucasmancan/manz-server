@@ -1,5 +1,6 @@
 package org.manz;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.manz.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,26 +18,37 @@ import static java.lang.String.format;
 
 public class ManzWorker implements Runnable {
 
+    private final Logger logger = LoggerFactory.getLogger(ManzServer.class);
+
     private final Socket client;
+
+    private final ObjectMapper objectMapper;
 
     private final Map<Route, Function<Request, Response>> registeredRoutes;
 
-    public ManzWorker(Socket client, Map<Route, Function<Request, Response>> registeredRoutes) {
+    public ManzWorker(Socket client,
+                      ObjectMapper objectMapper,
+                      Map<Route, Function<Request, Response>> registeredRoutes) {
         this.client = client;
+        this.objectMapper = objectMapper;
         this.registeredRoutes = registeredRoutes;
     }
 
-    private static final Logger logger = LoggerFactory.getLogger(ManzServer.class);
-
     @Override
     public void run() {
-        logger.info("Executing client request on: {}", Thread.currentThread().getName());
         try {
+
+            logger.debug("Executing client request on: {}", Thread.currentThread().getName());
+
+            if (socketConnectionIsInvalid(client))
+                return;
+
             var request = mapRequest(client.getInputStream());
 
             var response = handle(request);
 
-            logger.debug(request + " | " + response);
+            logger.debug("Request: {}", objectMapper.writeValueAsString(request));
+            logger.debug("Response: {}", objectMapper.writeValueAsString(response));
 
             sendResponse(client.getOutputStream(), response);
         } catch (Exception exception) {
@@ -44,6 +56,10 @@ public class ManzWorker implements Runnable {
         } finally {
             closeQuietly();
         }
+    }
+
+    private boolean socketConnectionIsInvalid(Socket socket) throws IOException {
+        return socket.getInputStream().available() == 0;
     }
 
     private void closeQuietly() {
@@ -66,11 +82,7 @@ public class ManzWorker implements Runnable {
         return routeHandlerRequest.get().getValue().apply(request);
     }
 
-    private static String[] readMessage(final InputStream inputStream) throws IOException {
-
-        if (!(inputStream.available() > 0)) {
-            return null;
-        }
+    private String[] readMessage(final InputStream inputStream) throws IOException {
 
         final char[] inBuffer = new char[inputStream.available()];
 
@@ -79,14 +91,9 @@ public class ManzWorker implements Runnable {
         return new String(inBuffer).split("\r\n");
     }
 
-    private static Request mapRequest(final InputStream inputStream) throws IOException {
+    private Request mapRequest(final InputStream inputStream) throws IOException {
 
         String[] requestsLines = readMessage(inputStream);
-
-        if (requestsLines == null
-                || requestsLines.length == 0) {
-            return null;
-        }
 
         String[] firstRequestLine = requestsLines[0].split(" ");
         String method = firstRequestLine[0];
@@ -103,7 +110,7 @@ public class ManzWorker implements Runnable {
         return new Request(HttpMethod.valueOf(method), isolatedPath, queryParameters, headers, requestBody);
     }
 
-    private static String isolatePath(String fullPath) {
+    private String isolatePath(String fullPath) {
         var index = fullPath.indexOf("?");
 
         // In case query parametes not provided
@@ -162,7 +169,7 @@ public class ManzWorker implements Runnable {
         try {
             clientOutput.write((format("HTTP/1.1 %s \r\n", response.status())).getBytes());
             if (response.responseBody() != null) {
-                clientOutput.write(("Content-Type: " + response.responseBody() + "\r\n").getBytes());
+                clientOutput.write(("Content-Type: " + response.responseBody().contentType() + "\r\n").getBytes());
                 clientOutput.write("\r\n".getBytes());
                 clientOutput.write(response.responseBody().value().getBytes());
             }
