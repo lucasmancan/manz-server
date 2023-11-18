@@ -15,14 +15,14 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
         var server = new ManzServer();
-        // creating the server instance and setting main server properties
+
         server.setServerMaxThreads(200);
         server.setServerPort(3000);
 
-        // registering a simple route
-        server.registerRoute(HttpMethod.GET, "/", helloWorldHandler());
+        var exampleRoute = new Route(HttpMethod.GET, "/", Collections.emptyList(), Collections.emptyList());
 
-        // starting the server
+        server.registerRoute(exampleRoute, helloWorldHandler());
+
         server.start();
     }
 }

@@ -1,18 +1,12 @@
 package org.manz;
 
-import org.manz.model.HttpMethod;
-import org.manz.model.Payload;
-import org.manz.model.Request;
-import org.manz.model.Response;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.manz.model.*;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.function.Function;
 
 public class Main {
-    private static final Logger logger = LoggerFactory.getLogger(Main.class);
-
 
     private static Function<Request, Response> helloWorldHandler() {
         return (Request request) -> new Response(200, new HashMap<>() {
@@ -25,7 +19,9 @@ public class Main {
         server.setServerMaxThreads(200);
         server.setServerPort(3000);
 
-        server.registerRoute(HttpMethod.GET, "/", helloWorldHandler());
+        var exampleRoute = new Route(HttpMethod.GET, "/", Collections.emptyList(), Collections.emptyList());
+
+        server.registerRoute(exampleRoute, helloWorldHandler());
 
         server.start();
     }

@@ -3,6 +3,7 @@ package org.manz;
 import org.manz.model.HttpMethod;
 import org.manz.model.Request;
 import org.manz.model.Response;
+import org.manz.model.Route;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,15 +12,20 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
-
+import java.math.*;
 public class ManzServer {
     private int port = 3000;
     private int maxThreads = 200;
     private final Logger logger = LoggerFactory.getLogger(ManzServer.class);
     private final Executor manzWorkersPoll = Executors.newFixedThreadPool(maxThreads);
+
+    private final Map<Route, Function<Request, Response>> registeredRoutes = new HashMap<>();
 
     public void setServerPort(int port) {
         this.port = port;
@@ -29,8 +35,9 @@ public class ManzServer {
         this.maxThreads = maxThreads;
     }
 
-    public void registerRoute(HttpMethod method, String path, Function<Request, Response> handler) {
-        // TODO implement route registration
+
+    public void registerRoute(Route route, Function<Request, Response> handler) {
+        this.registeredRoutes.put(route, handler);
     }
 
     public void start() {
@@ -38,7 +45,7 @@ public class ManzServer {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             while (true) {
                 Socket client = serverSocket.accept();
-                manzWorkersPoll.execute(new ManzWorker(client));
+                manzWorkersPoll.execute(new ManzWorker(client, registeredRoutes));
             }
         } catch (IOException exception) {
             logger.error("Internal error running Manz server", exception);

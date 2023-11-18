@@ -1,8 +1,6 @@
 package org.manz;
 
-import org.manz.model.Payload;
-import org.manz.model.Request;
-import org.manz.model.Response;
+import org.manz.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,9 +10,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.net.SocketException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.function.Function;
 
 import static java.lang.String.format;
 
@@ -22,11 +19,14 @@ public class ManzWorker implements Runnable {
 
     private final Socket client;
 
-    public ManzWorker(Socket client) {
+    private final Map<Route, Function<Request, Response>> registeredRoutes;
+
+    public ManzWorker(Socket client, Map<Route, Function<Request, Response>> registeredRoutes) {
         this.client = client;
+        this.registeredRoutes = registeredRoutes;
     }
 
-    private final Logger logger = LoggerFactory.getLogger(ManzServer.class);
+    private static final Logger logger = LoggerFactory.getLogger(ManzServer.class);
 
     @Override
     public void run() {
@@ -54,8 +54,16 @@ public class ManzWorker implements Runnable {
         }
     }
 
-    private static Response handle(Request request) {
-        return new Response(200, new HashMap<>(), new Payload("{\"message\":\"blaaa\"}", "application/json"));
+    private Response handle(Request request) {
+        var routeHandlerRequest = registeredRoutes.entrySet().stream()
+                .filter(route -> route.getKey().method().equals(request.method()) && route.getKey().path().equals(request.path()))
+                .findFirst();
+
+        if (routeHandlerRequest.isEmpty()) {
+            return Response.NOT_FOUND;
+        }
+
+        return routeHandlerRequest.get().getValue().apply(request);
     }
 
     private static String[] readMessage(final InputStream inputStream) throws IOException {
@@ -82,13 +90,46 @@ public class ManzWorker implements Runnable {
 
         String[] firstRequestLine = requestsLines[0].split(" ");
         String method = firstRequestLine[0];
-        String path = firstRequestLine[1];
+        String fullPath = firstRequestLine[1];
+
+        Map<String, String> queryParameters = mapQueryParameters(fullPath);
+
+        var isolatedPath = isolatePath(fullPath);
 
         Map<String, String> headers = mapRequestHeaders(requestsLines);
 
         Optional<Payload> requestBody = mapRequestBody(requestsLines, headers);
 
-        return new Request(method, path, headers, requestBody);
+        return new Request(HttpMethod.valueOf(method), isolatedPath, queryParameters, headers, requestBody);
+    }
+
+    private static String isolatePath(String fullPath) {
+        var index = fullPath.indexOf("?");
+
+        // In case query parametes not provided
+        if (index == -1)
+            return fullPath;
+
+        return fullPath.substring(0, index);
+    }
+
+    private static Map<String, String> mapQueryParameters(String path) {
+        var index = path.indexOf("?");
+        if (index == -1) {
+            return Collections.emptyMap();
+        }
+
+        var queryParameterMap = new HashMap<String, String>();
+
+        Arrays.stream(path.substring(index + 1)
+                .split("&")).forEach(rawQueryParameter -> {
+
+            var rawQueryParameterSplited = rawQueryParameter.split("=");
+
+            queryParameterMap.put(rawQueryParameterSplited[0], rawQueryParameterSplited[1]);
+        });
+
+        return queryParameterMap;
     }
 
     private static Optional<Payload> mapRequestBody(String[] requestsLines, Map<String, String> headers) {

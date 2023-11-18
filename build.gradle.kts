@@ -18,12 +18,19 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter")
     // https://mvnrepository.com/artifact/org.apache.commons/commons-lang3
     implementation("org.apache.commons:commons-lang3:3.0")
+    // https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-core
+    implementation("com.fasterxml.jackson.core:jackson-core:2.16.0")
+// https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-databind
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.16.0")
+
     // https://mvnrepository.com/artifact/org.slf4j/slf4j-api
     implementation("org.slf4j:slf4j-api:2.0.9")
     // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
     implementation("ch.qos.logback:logback-classic:1.4.11")
-
-
+// https://mvnrepository.com/artifact/com.squareup.okhttp/okhttp
+    testImplementation("com.squareup.okhttp:okhttp:2.7.5")
+// https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-engine
+    testImplementation("org.junit.jupiter:junit-jupiter-engine:5.10.1")
 
 }
 
